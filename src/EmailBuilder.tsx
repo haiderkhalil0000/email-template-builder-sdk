@@ -10,7 +10,8 @@ import React, {
   useState,
 } from 'react';
 import type { BuilderToHostMessage, HostToBuilderMessage } from './protocol';
-import { buildEnvelope, deriveAllowedOrigin, sanitizeIncomingMessage, stableSignature } from './utils';
+import { isMessageLike } from './protocol';
+import { buildEnvelope, deriveAllowedOrigin, stableSignature } from './utils';
 import type { EmailBuilderHandle, EmailBuilderProps, EmailBuilderStatus } from './types';
 
 const DEFAULT_SANDBOX = 'allow-scripts allow-same-origin allow-forms';
@@ -65,6 +66,7 @@ function EmailBuilderInner(
   const [status, setStatus] = useState<EmailBuilderStatus>('loading');
   const [reloadKey, setReloadKey] = useState(0);
   const queueRef = useRef<PendingMessage[]>([]);
+  const runtimeOriginRef = useRef<string | null>(null);
   const effectiveInitialHtml = initialHtml ?? DEFAULT_INITIAL_HTML;
   const initSignatureRef = useRef(stableSignature({ html: effectiveInitialHtml, config }));
   const latestInitRef = useRef<HostToBuilderMessage>({
@@ -73,6 +75,8 @@ function EmailBuilderInner(
   });
 
   const expectedOrigin = useMemo(() => deriveAllowedOrigin(src, allowedOrigin), [src, allowedOrigin]);
+
+  const resolveTargetOrigin = useCallback(() => runtimeOriginRef.current ?? expectedOrigin, [expectedOrigin]);
 
   const setStatusSafely = useCallback(
     (next: EmailBuilderStatus) => {
@@ -98,9 +102,9 @@ function EmailBuilderInner(
         return;
       }
 
-      builderWindowRef.current.postMessage(buildEnvelope(message, correlationId), expectedOrigin);
+      builderWindowRef.current.postMessage(buildEnvelope(message, correlationId), resolveTargetOrigin());
     },
-    [expectedOrigin]
+    [resolveTargetOrigin]
   );
 
   const flushQueue = useCallback(() => {
@@ -110,9 +114,12 @@ function EmailBuilderInner(
     const pending = [...queueRef.current];
     queueRef.current = [];
     pending.forEach(({ message, correlationId }) => {
-      builderWindowRef.current?.postMessage(buildEnvelope(message, correlationId), expectedOrigin);
+      builderWindowRef.current?.postMessage(
+        buildEnvelope(message, correlationId),
+        resolveTargetOrigin()
+      );
     });
-  }, [expectedOrigin]);
+  }, [resolveTargetOrigin]);
 
   const handleReadyMessage = useCallback(() => {
     readyRef.current = true;
@@ -150,10 +157,18 @@ function EmailBuilderInner(
   const handleMessage = useCallback(
     (event: MessageEvent) => {
       const iframeWindow = iframeRef.current?.contentWindow ?? builderWindowRef.current;
-      const message = sanitizeIncomingMessage(event, expectedOrigin, iframeWindow);
-      if (!message) {
+      if (!iframeWindow || event.source !== iframeWindow) {
         return;
       }
+      if (!isMessageLike(event.data)) {
+        return;
+      }
+      if (!runtimeOriginRef.current) {
+        runtimeOriginRef.current = event.origin;
+      } else if (event.origin !== runtimeOriginRef.current) {
+        return;
+      }
+      const message = event.data as BuilderToHostMessage;
 
       if (event.source && event.source !== builderWindowRef.current) {
         builderWindowRef.current = event.source as Window;
@@ -176,7 +191,7 @@ function EmailBuilderInner(
           break;
       }
     },
-    [expectedOrigin, handleReadyMessage, handleUpload, onChange, onSave]
+    [handleReadyMessage, handleUpload, onChange, onSave]
   );
 
   useEffect(() => {
@@ -202,6 +217,7 @@ function EmailBuilderInner(
   const handleIframeLoad = useCallback(() => {
     builderWindowRef.current = iframeRef.current?.contentWindow ?? null;
     readyRef.current = false;
+    runtimeOriginRef.current = null;
     setStatusSafely('loading');
   }, [setStatusSafely]);
 
@@ -212,6 +228,7 @@ function EmailBuilderInner(
         queueRef.current = [];
         readyRef.current = false;
         builderWindowRef.current = null;
+        runtimeOriginRef.current = null;
         setStatusSafely('loading');
         setReloadKey((key) => key + 1);
       },

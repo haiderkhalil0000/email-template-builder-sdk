@@ -77,7 +77,9 @@ function EmailBuilderInner(
 
   const expectedOrigin = useMemo(() => deriveAllowedOrigin(src, allowedOrigin), [src, allowedOrigin]);
 
-  const resolveTargetOrigin = useCallback(() => runtimeOriginRef.current ?? expectedOrigin, [expectedOrigin]);
+  // Use '*' for outgoing postMessage since we target a specific contentWindow we own.
+  // Avoids silent message drops from origin mismatches (e.g. Netlify redirects).
+  const resolveTargetOrigin = useCallback(() => '*', []);
 
   const setStatusSafely = useCallback(
     (next: EmailBuilderStatus) => {
@@ -232,7 +234,7 @@ function EmailBuilderInner(
     // Some embeds can miss READY due to mount-order races.
     if (builderWindowRef.current) {
       try {
-        builderWindowRef.current.postMessage(buildEnvelope(latestInitRef.current), expectedOrigin);
+        builderWindowRef.current.postMessage(buildEnvelope(latestInitRef.current), '*');
       } catch {
         // Ignore and wait for normal READY/message flow.
       }

@@ -14,6 +14,7 @@ import { buildEnvelope, deriveAllowedOrigin, sanitizeIncomingMessage, stableSign
 import type { EmailBuilderHandle, EmailBuilderProps, EmailBuilderStatus } from './types';
 
 const DEFAULT_SANDBOX = 'allow-scripts allow-same-origin allow-forms';
+const DEFAULT_INITIAL_HTML = '<h1>Hello World</h1><p>Start building your email template.</p>';
 
 type PendingMessage = {
   message: HostToBuilderMessage;
@@ -64,10 +65,11 @@ function EmailBuilderInner(
   const [status, setStatus] = useState<EmailBuilderStatus>('loading');
   const [reloadKey, setReloadKey] = useState(0);
   const queueRef = useRef<PendingMessage[]>([]);
-  const initSignatureRef = useRef(stableSignature({ html: initialHtml, config }));
+  const effectiveInitialHtml = initialHtml ?? DEFAULT_INITIAL_HTML;
+  const initSignatureRef = useRef(stableSignature({ html: effectiveInitialHtml, config }));
   const latestInitRef = useRef<HostToBuilderMessage>({
     type: 'INIT',
-    payload: { html: initialHtml, config },
+    payload: { html: effectiveInitialHtml, config },
   });
 
   const expectedOrigin = useMemo(() => deriveAllowedOrigin(src, allowedOrigin), [src, allowedOrigin]);
@@ -134,9 +136,12 @@ function EmailBuilderInner(
         const url = await onUpload(eventMessage.payload.file);
         postMessage({ type: 'UPLOAD_SUCCESS', payload: { url } }, eventMessage.meta?.id);
       } catch (error) {
+        setStatusSafely('error');
         console.error('[EmailBuilderSDK] Upload handler failed', error);
       } finally {
-        setStatusSafely('ready');
+        if (statusRef.current !== 'error') {
+          setStatusSafely('ready');
+        }
       }
     },
     [onUpload, postMessage, setStatusSafely]
@@ -185,14 +190,14 @@ function EmailBuilderInner(
   }, [handleMessage]);
 
   useEffect(() => {
-    const nextPayload = { html: initialHtml, config };
+    const nextPayload = { html: effectiveInitialHtml, config };
     const signature = stableSignature(nextPayload);
     latestInitRef.current = { type: 'INIT', payload: nextPayload };
     if (signature !== initSignatureRef.current && readyRef.current) {
       postMessage(latestInitRef.current);
     }
     initSignatureRef.current = signature;
-  }, [config, initialHtml, postMessage]);
+  }, [config, effectiveInitialHtml, postMessage]);
 
   const handleIframeLoad = useCallback(() => {
     builderWindowRef.current = iframeRef.current?.contentWindow ?? null;

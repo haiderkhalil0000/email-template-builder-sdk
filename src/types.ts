@@ -7,7 +7,7 @@ export type EmailBuilderStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 export interface EmailBuilderProps {
   src: string;
-  initialHtml: string;
+  initialHtml?: string;
   config?: BuilderConfig;
   className?: string;
   style?: CSSProperties;

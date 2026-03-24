@@ -62,7 +62,7 @@ type UploadHandler = (file: File) => Promise<string>;
 type EmailBuilderStatus = 'idle' | 'loading' | 'ready' | 'error';
 interface EmailBuilderProps {
     src: string;
-    initialHtml: string;
+    initialHtml?: string;
     config?: BuilderConfig;
     className?: string;
     style?: CSSProperties;

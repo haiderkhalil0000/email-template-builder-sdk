@@ -1,68 +1,70 @@
 # @circles/email-builder-sdk
 
-A lightweight React wrapper that mounts the Circles email builder inside an iframe and manages a secure `postMessage` bridge for INIT/READY/CHANGE/SAVE/UPLOAD/UPLOAD_SUCCESS events.
+React SDK for embedding the Circles Email Builder in your app.
 
-## Installation
+## Install
 
 ```bash
 npm install @circles/email-builder-sdk
-# or
-yarn add @circles/email-builder-sdk
 ```
 
-Install directly from Bitbucket (monorepo path install):
-
-```bash
-npm install git+ssh://git@bitbucket.org/venndii/circles.git#path=email-builder-sdk
-```
-
-## Usage
+## Quick Start
 
 ```tsx
 import { EmailBuilder } from '@circles/email-builder-sdk';
 
-export function MarketingEmailEditor() {
+export function EmailEditor() {
   return (
-    <EmailBuilder
-      src="https://builder.circles.app/iframe"
-      initialHtml="<h1>Hello</h1>"
-      config={{ theme: 'light' }}
-      onChange={(html) => console.log('live html', html)}
-      onSave={(html) => console.log('persist', html)}
-      onUpload={async (file) => {
-        const body = new FormData();
-        body.append('asset', file);
-        const response = await fetch('/api/uploads', { method: 'POST', body });
-        const data = await response.json();
-        return data.url;
-      }}
-    />
+    <div style={{ height: '100vh' }}>
+      <EmailBuilder
+        src="https://pc-email-template-builder.netlify.app"
+        initialHtml="<h1>Welcome</h1><p>Edit this email template</p>"
+        onChange={(html) => console.log('changed', html)}
+        onSave={(html) => console.log('saved', html)}
+        onUpload={async (file) => {
+          const body = new FormData();
+          body.append('asset', file);
+          const response = await fetch('/api/uploads', { method: 'POST', body });
+          const data = await response.json();
+          return data.url;
+        }}
+      />
+    </div>
   );
 }
 ```
 
-## Development & Build
+If `initialHtml` is not provided, the editor starts with a default Hello World template.
 
-```bash
-cd email-builder-sdk
-npm install
-npm run dev   # watch mode (tsup)
-npm run build # production bundle
-```
+## Props
 
-`dist/` contains CommonJS + ESM bundles plus `.d.ts` files. Publish via:
+| Prop | Type | Required | Description |
+| --- | --- | --- | --- |
+| `src` | `string` | Yes | Absolute URL of the hosted email builder app. |
+| `initialHtml` | `string` | No | Initial HTML content to load in the editor. |
+| `config` | `Record<string, unknown>` | No | Optional builder configuration object. |
+| `className` | `string` | No | Class for the wrapper container. |
+| `style` | `React.CSSProperties` | No | Inline styles for the wrapper container. |
+| `iframeTitle` | `string` | No | Accessible title for the iframe. |
+| `sandbox` | `string` | No | Custom iframe sandbox value. |
+| `allowedOrigin` | `string` | No | Override allowed origin for message validation. |
+| `onReady` | `() => void` | No | Called when editor is ready. |
+| `onStatusChange` | `(status) => void` | No | Called on status changes (`loading`, `ready`, `error`). |
+| `onChange` | `(html: string) => void` | No | Called when editor content changes. |
+| `onSave` | `(html: string) => void` | No | Called when user saves content. |
+| `onUpload` | `(file: File) => Promise<string>` | No | Upload handler that returns a public URL for inserted assets. |
 
-```bash
-npm run build
-npm publish --access public
-```
+## Ref API
 
-## Message Contract
+`EmailBuilder` supports a ref with:
 
-The SDK re-exports the shared protocol so host apps can import the `Message` union directly:
+- `reload(): void` - Reloads the embedded editor iframe.
 
-```ts
-import type { Message } from '@circles/email-builder-sdk';
-```
+## Requirements
 
-The handshake is: iframe emits `READY`, the SDK responds with `INIT`, and all other events flow through the bridge with origin validation.
+- React `>=18.2.0`
+- ReactDOM `>=18.2.0`
+
+## License
+
+MIT

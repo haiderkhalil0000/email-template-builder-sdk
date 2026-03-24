@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@circles/email-builder-sdk</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #f6f8fb;
+        color: #111827;
+      }
+      .wrap {
+        max-width: 860px;
+        margin: 56px auto;
+        padding: 0 20px;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(17, 24, 39, 0.05);
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: 1.5rem;
+      }
+      p {
+        margin: 0 0 18px;
+        color: #374151;
+        line-height: 1.5;
+      }
+      .links {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 14px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        border: 1px solid #d1d5db;
+        color: #111827;
+        background: #fff;
+      }
+      a.primary {
+        background: #2563eb;
+        color: #fff;
+        border-color: #2563eb;
+      }
+      .meta {
+        margin-top: 16px;
+        font-size: 0.9rem;
+        color: #6b7280;
+      }
+      code {
+        background: #f3f4f6;
+        border-radius: 6px;
+        padding: 2px 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <section class="card">
+        <h1>@circles/email-builder-sdk</h1>
+        <p>
+          Production-ready React SDK for embedding the Circles email builder with a secure
+          <code>postMessage</code> bridge.
+        </p>
+        <div class="links">
+          <a class="primary" href="./test-local.html">Open Local Integration Test</a>
+          <a href="./README.md">View README</a>
+        </div>
+        <div class="meta">Build output is available in <code>./dist</code>.</div>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,8 +1,6 @@
 import type { BuilderToHostMessage, HostToBuilderMessage, MessageMeta } from './protocol';
 import { createMessageMeta, isMessageLike } from './protocol';
 
-const DEFAULT_BASE_URL = 'https://localhost';
-
 export function deriveAllowedOrigin(src: string, override?: string): string {
   if (override) {
     const parsed = new URL(override);
@@ -12,7 +10,12 @@ export function deriveAllowedOrigin(src: string, override?: string): string {
     return parsed.origin;
   }
 
-  const parsed = new URL(src, DEFAULT_BASE_URL);
+  let parsed: URL;
+  try {
+    parsed = new URL(src);
+  } catch {
+    throw new Error('EmailBuilder `src` must be an absolute URL (e.g. https://example.com)');
+  }
   if (!parsed.origin || parsed.origin === 'null') {
     throw new Error('EmailBuilder requires an absolute src URL with a valid origin');
   }

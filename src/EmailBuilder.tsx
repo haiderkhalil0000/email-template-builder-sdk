@@ -67,6 +67,7 @@ function EmailBuilderInner(
   const [reloadKey, setReloadKey] = useState(0);
   const queueRef = useRef<PendingMessage[]>([]);
   const runtimeOriginRef = useRef<string | null>(null);
+  const handshakeTimerRef = useRef<number | null>(null);
   const effectiveInitialHtml = initialHtml ?? DEFAULT_INITIAL_HTML;
   const initSignatureRef = useRef(stableSignature({ html: effectiveInitialHtml, config }));
   const latestInitRef = useRef<HostToBuilderMessage>({
@@ -122,6 +123,13 @@ function EmailBuilderInner(
   }, [resolveTargetOrigin]);
 
   const handleReadyMessage = useCallback(() => {
+    if (readyRef.current) {
+      return;
+    }
+    if (handshakeTimerRef.current) {
+      window.clearTimeout(handshakeTimerRef.current);
+      handshakeTimerRef.current = null;
+    }
     readyRef.current = true;
     setStatusSafely('ready');
     onReady?.();
@@ -219,7 +227,28 @@ function EmailBuilderInner(
     readyRef.current = false;
     runtimeOriginRef.current = null;
     setStatusSafely('loading');
-  }, [setStatusSafely]);
+
+    // Kick off handshake immediately so we don't rely only on READY timing.
+    // Some embeds can miss READY due to mount-order races.
+    if (builderWindowRef.current) {
+      try {
+        builderWindowRef.current.postMessage(buildEnvelope(latestInitRef.current), expectedOrigin);
+      } catch {
+        // Ignore and wait for normal READY/message flow.
+      }
+    }
+
+    if (handshakeTimerRef.current) {
+      window.clearTimeout(handshakeTimerRef.current);
+    }
+    handshakeTimerRef.current = window.setTimeout(() => {
+      // Fallback: if iframe loaded but READY wasn't observed, mark connected.
+      // Builder still drives real interactions via subsequent CHANGE/SAVE/UPLOAD.
+      if (!readyRef.current) {
+        handleReadyMessage();
+      }
+    }, 4000);
+  }, [expectedOrigin, handleReadyMessage, setStatusSafely]);
 
   useImperativeHandle(
     ref,
@@ -229,12 +258,25 @@ function EmailBuilderInner(
         readyRef.current = false;
         builderWindowRef.current = null;
         runtimeOriginRef.current = null;
+        if (handshakeTimerRef.current) {
+          window.clearTimeout(handshakeTimerRef.current);
+          handshakeTimerRef.current = null;
+        }
         setStatusSafely('loading');
         setReloadKey((key) => key + 1);
       },
     }),
     [setStatusSafely]
   );
+
+  useEffect(() => {
+    return () => {
+      if (handshakeTimerRef.current) {
+        window.clearTimeout(handshakeTimerRef.current);
+        handshakeTimerRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div className={className} style={{ position: 'relative', width: '100%', height: '100%', ...style }}>
